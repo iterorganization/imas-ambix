@@ -1,0 +1,109 @@
+# IMAS Ambix ⚗️
+
+**Fusion World Model — distilling experimental data into physics-informed generative models**
+
+Ambix is a machine learning framework for training generative world models on
+tokamak experimental data. It distils data access patterns and IMAS mappings
+discovered by [imas-codex](https://github.com/iterorganization/imas-codex) into
+a unified training corpus, then trains transformer-based models capable of
+predicting plasma evolution from control inputs.
+
+## Vision
+
+A Fusion World Model trained on experimental data from ITER's partner tokamaks
+(JET, TCV, JT-60SA, ASDEX Upgrade, DIII-D) that can:
+
+- **Pre-play planned pulses** — generate predicted plasma evolution given control
+  waveforms, before execution on the real machine
+- **Validate physics assumptions** — compare predicted plasma response against
+  expectations in silico
+- **Assess disruption susceptibility** — identify trajectories passing through
+  regions associated with disruption precursors
+- **Explore alternative scenarios** — modify control waveforms and compare
+  predicted outcomes without consuming machine time
+
+The underlying approach follows Microsoft's WHAM (World and Human Action Model)
+architecture: given the current plasma state (diagnostic measurements at time *t*)
+and control actions (coil currents, gas injection, heating power), predict the
+plasma state at time *t+1*.
+
+## Architecture
+
+```
+imas-codex (discovery)          imas-ambix (distillation & training)
+┌─────────────────────┐         ┌─────────────────────────────────────┐
+│ Federated Fusion     │         │                                     │
+│ Knowledge Graph      │────────▶│  Distilled Data Patterns            │
+│ (Neo4j artifact)     │         │  ├─ IMAS Mappings (source→target)   │
+└─────────────────────┘         │  ├─ Signal Metadata                 │
+                                │  └─ Coordinate Transforms           │
+                                │                                     │
+                                │  Training Pipeline                  │
+                                │  ├─ Data Loaders (HDF5/MDSplus)     │
+                                │  ├─ Tokenization (state→tokens)     │
+                                │  ├─ Model (transformer)             │
+                                │  └─ Evaluation (physics metrics)    │
+                                └─────────────────────────────────────┘
+                                          │
+                                          ▼
+                                ┌─────────────────────┐
+                                │  GPU Server          │
+                                │  98dci4-gpu-0003     │
+                                │  4× NVIDIA H200      │
+                                │  564 GB VRAM         │
+                                └─────────────────────┘
+```
+
+## Relationship to imas-codex
+
+| Project | Role | Output |
+|---------|------|--------|
+| **imas-codex** | Discovery & mapping | Federated Fusion Knowledge Graph |
+| **imas-ambix** | Distillation & training | Fusion World Model weights |
+
+Codex discovers *what data exists* and *how it maps to IMAS*. Ambix consumes
+those mappings to build unified training datasets and train generative models.
+
+## Infrastructure
+
+Training targets the ITER Science Division GPU server:
+- **4× NVIDIA H200** (141 GB HBM3e each, 564 GB total)
+- **NVLink mesh** (900 GB/s per GPU)
+- **FP8 Tensor Cores** (15,832 TFLOPS aggregate)
+
+Estimated training corpus: ~26 billion state transitions from partner tokamaks.
+
+## Quick Start
+
+```bash
+# Install with uv (development mode)
+uv sync --dev
+
+# Run CLI
+ambix status
+
+# Run tests
+uv run pytest
+```
+
+## Development
+
+```bash
+# Create virtual environment with preferred Python
+uv venv --python 3.14
+
+# Install in development mode
+uv sync --dev
+
+# Lint
+uv run ruff check src/ tests/
+
+# Type check
+uv run mypy src/
+```
+
+## Licence
+
+LGPL-3.0-or-later — see [LICENSE](LICENSE).
+
+Copyright © 2026 ITER Organization.
